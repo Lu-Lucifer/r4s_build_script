@@ -1,0 +1,38 @@
+name: Sync upstream and Build
+
+on:
+  schedule:
+    - cron: '0 * * * *' # 每小时自动同步一次，可调整
+
+jobs:
+  sync-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 
+
+      - name: Set Git Config
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+
+      - name: Add upstream remote
+        run: |
+          git remote add upstream https://github.com/sbwml/r4s_build_script.git
+          git fetch upstream
+
+      - name: Merge upstream changes
+        run: |
+          git merge upstream/master || true 
+
+      - name: Push changes if any
+        run: |
+          git push origin HEAD:master || true
+
+      - name: Trigger build-release workflow
+        uses: peter-evans/workflow-dispatch@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          workflow: build-release.yml
