@@ -32,7 +32,13 @@ jobs:
           git push origin HEAD:master || true
 
       - name: Trigger build-release workflow
-        uses: peter-evans/workflow-dispatch@v1
+        uses: actions/github-script@v6
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          workflow: build-release.yml
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'build-release.yml',
+              ref: 'master'
+            });
