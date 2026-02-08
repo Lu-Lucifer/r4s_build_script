@@ -69,8 +69,8 @@ pushd feeds/luci
 popd
 
 # samba4 - bump version
-rm -rf feeds/packages/net/samba4
-git clone https://$github/sbwml/feeds_packages_net_samba4 feeds/packages/net/samba4
+#rm -rf feeds/packages/net/samba4
+#git clone https://$github/sbwml/feeds_packages_net_samba4 feeds/packages/net/samba4
 # enable multi-channel
 sed -i '/workgroup/a \\n\t## enable multi-channel' feeds/packages/net/samba4/files/smb.conf.template
 sed -i '/enable multi-channel/a \\tserver multi channel support = yes' feeds/packages/net/samba4/files/smb.conf.template
@@ -148,15 +148,7 @@ rm -rf feeds/packages/utils/coremark
 git clone https://$github/sbwml/openwrt_pkgs package/new/custom --depth=1
 rm -rf package/new/custom/ddns-scripts-aliyun
 # coremark - prebuilt with gcc15
-if [ "$platform" = "rk3568" ]; then
-    curl -s $mirror/openwrt/patch/coremark/coremark.aarch64-4-threads > package/new/custom/coremark/src/musl/coremark.aarch64
-elif [ "$platform" = "rk3576" ]; then
-    curl -s $mirror/openwrt/patch/coremark/coremark.aarch64-16-threads > package/new/custom/coremark/src/musl/coremark.aarch64
-elif [ "$platform" = "rk3399" ]; then
-    curl -s $mirror/openwrt/patch/coremark/coremark.aarch64-6-threads > package/new/custom/coremark/src/musl/coremark.aarch64
-elif [ "$platform" = "armv8" ]; then
-    curl -s $mirror/openwrt/patch/coremark/coremark.aarch64-16-threads > package/new/custom/coremark/src/musl/coremark.aarch64
-fi
+curl -s $mirror/openwrt/patch/coremark/coremark.aarch64-16-threads > package/new/custom/coremark/src/musl/coremark.aarch64
 
 # luci-compat - fix translation
 sed -i 's/<%:Up%>/<%:Move up%>/g' feeds/luci/modules/luci-compat/luasrc/view/cbi/tblsection.htm
