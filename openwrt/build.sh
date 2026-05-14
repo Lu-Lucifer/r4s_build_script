@@ -131,6 +131,8 @@ elif [ "$USE_GCC14" = y ]; then
     export USE_GCC14=y gcc_version=14
 elif [ "$USE_GCC15" = y ]; then
     export USE_GCC15=y gcc_version=15
+elif [ "$USE_GCC16" = y ]; then
+    export USE_GCC16=y gcc_version=16
 else
     export USE_GCC15=y gcc_version=15
 fi
@@ -209,14 +211,11 @@ print_status "ENABLE_ISTORE"     "$ENABLE_ISTORE"
 print_status "KERNEL_CLANG_LTO"  "$KERNEL_CLANG_LTO" "$GREEN_COLOR" "$YELLOW_COLOR" "\n"
 
 # clean old files
-rm -rf openwrt master
+rm -rf openwrt
 
 # openwrt - releases
 [ "$(whoami)" = "runner" ] && group "source code"
 git clone --depth=1 https://$code_mirror/openwrt/openwrt -b $branch
-
-# immortalwrt master
-git clone https://$github/immortalwrt/packages master/immortalwrt_packages --depth=1
 [ "$(whoami)" = "runner" ] && endgroup
 
 if [ -d openwrt ]; then
@@ -300,7 +299,6 @@ find feeds -type f -name "*.orig" -exec rm -f {} \;
 [ "$(whoami)" = "runner" ] && endgroup
 
 rm -f 0*-*.sh 10-custom.sh
-rm -rf ../master
 
 # Load devices Config
 if [ "$platform" = "x86_64" ]; then
@@ -361,7 +359,7 @@ export ENABLE_LTO=$ENABLE_LTO
 # kernel - CLANG + LTO; Allow CONFIG_KERNEL_CC=clang / clang-18 / clang-xx
 if [ "$KERNEL_CLANG_LTO" = "y" ]; then
     echo '# Kernel - CLANG LTO' >> .config
-    if [ "$USE_GCC15" = "y" ] && [ "$ENABLE_CCACHE" = "y" ]; then
+    if [ "$USE_GCC15" = "y" ] || [ "$USE_GCC16" = "y" ] && [ "$ENABLE_CCACHE" = "y" ]; then
         echo 'CONFIG_KERNEL_CC="ccache clang"' >> .config
     else
         echo 'CONFIG_KERNEL_CC="clang"' >> .config
@@ -403,7 +401,7 @@ echo -e "CONFIG_GCC_USE_VERSION_${gcc_version}=y\n" >> .config
 [ "$OPENWRT_CORE" = "y" ] && echo 'CONFIG_PACKAGE_kmod-mt7927-firmware=m' >> .config
 
 # ccache
-if [ "$USE_GCC15" = "y" ] && [ "$ENABLE_CCACHE" = "y" ]; then
+if [ "$ENABLE_CCACHE" = "y" ]; then
     echo "CONFIG_CCACHE=y" >> .config
     [ "$(whoami)" = "runner" ] && echo "CONFIG_CCACHE_DIR=\"/builder/.ccache\"" >> .config
     [ "$(whoami)" = "sbwml" ] && echo "CONFIG_CCACHE_DIR=\"/home/sbwml/.ccache\"" >> .config
@@ -415,6 +413,9 @@ fi
     sed -i '/samba4/d' .config
     sed -i '/qbittorrent/d' .config
 }
+
+# add to core
+[ "$OPENWRT_CORE" = "y" ] && curl -s $mirror/openwrt/generic/config-build-only >> .config
 
 # Toolchain Cache
 if [ "$BUILD_FAST" = "y" ]; then
@@ -482,12 +483,14 @@ if [ "$platform" = "x86_64" ]; then
         cp -a bin/targets/x86/*/packages $kmodpkg_name
         rm -f $kmodpkg_name/Packages*
         cp -a bin/packages/x86_64/base/rtl88*a-firmware*.apk $kmodpkg_name/ || true
-        cp -a bin/packages/x86_64/base/natflow*.apk $kmodpkg_name/ || true
         [ "$OPENWRT_CORE" = "y" ] && {
             cp -a bin/packages/x86_64/base/*3ginfo*.apk $kmodpkg_name/ || true
             cp -a bin/packages/x86_64/base/*modemband*.apk $kmodpkg_name/ || true
             cp -a bin/packages/x86_64/base/*sms-tool*.apk $kmodpkg_name/ || true
             cp -a bin/packages/x86_64/base/*quectel*.apk $kmodpkg_name/ || true
+            cp -a bin/packages/aarch64_generic/base/natflow*.apk $kmodpkg_name/ || true
+            cp -a bin/packages/aarch64_generic/base/appfilter*.apk $kmodpkg_name/ || true
+            cp -a bin/packages/aarch64_generic/base/luci-app-oaf*.apk $kmodpkg_name/ || true
         }
         [ "$ENABLE_DPDK" = "y" ] && {
             cp -a bin/packages/x86_64/base/*dpdk*.apk $kmodpkg_name/ || true
@@ -532,12 +535,14 @@ elif [ "$platform" = "armv8" ]; then
         cp -a bin/targets/armsr/armv8*/packages $kmodpkg_name
         rm -f $kmodpkg_name/Packages*
         cp -a bin/packages/aarch64_generic/base/rtl88*a-firmware*.apk $kmodpkg_name/ || true
-        cp -a bin/packages/aarch64_generic/base/natflow*.apk $kmodpkg_name/ || true
         [ "$OPENWRT_CORE" = "y" ] && {
             cp -a bin/packages/aarch64_generic/base/*3ginfo*.apk $kmodpkg_name/ || true
             cp -a bin/packages/aarch64_generic/base/*modemband*.apk $kmodpkg_name/ || true
             cp -a bin/packages/aarch64_generic/base/*sms-tool*.apk $kmodpkg_name/ || true
             cp -a bin/packages/aarch64_generic/base/*quectel*.apk $kmodpkg_name/ || true
+            cp -a bin/packages/aarch64_generic/base/natflow*.apk $kmodpkg_name/ || true
+            cp -a bin/packages/aarch64_generic/base/appfilter*.apk $kmodpkg_name/ || true
+            cp -a bin/packages/aarch64_generic/base/luci-app-oaf*.apk $kmodpkg_name/ || true
         }
         [ "$ENABLE_DPDK" = "y" ] && {
             cp -a bin/packages/aarch64_generic/base/*dpdk*.apk $kmodpkg_name/ || true
@@ -577,12 +582,14 @@ else
         cp -a bin/targets/rockchip/armv8*/packages $kmodpkg_name
         rm -f $kmodpkg_name/Packages*
         cp -a bin/packages/aarch64_generic/base/rtl88*-firmware*.apk $kmodpkg_name/ || true
-        cp -a bin/packages/aarch64_generic/base/natflow*.apk $kmodpkg_name/ || true
         [ "$OPENWRT_CORE" = "y" ] && {
             cp -a bin/packages/aarch64_generic/base/*3ginfo*.apk $kmodpkg_name/ || true
             cp -a bin/packages/aarch64_generic/base/*modemband*.apk $kmodpkg_name/ || true
             cp -a bin/packages/aarch64_generic/base/*sms-tool*.apk $kmodpkg_name/ || true
             cp -a bin/packages/aarch64_generic/base/*quectel*.apk $kmodpkg_name/ || true
+            cp -a bin/packages/aarch64_generic/base/natflow*.apk $kmodpkg_name/ || true
+            cp -a bin/packages/aarch64_generic/base/appfilter*.apk $kmodpkg_name/ || true
+            cp -a bin/packages/aarch64_generic/base/luci-app-oaf*.apk $kmodpkg_name/ || true
         }
         [ "$ENABLE_DPDK" = "y" ] && {
             cp -a bin/packages/aarch64_generic/base/*dpdk*.apk $kmodpkg_name/ || true
